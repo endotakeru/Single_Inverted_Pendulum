@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Single Inverted Pendulum - PD Controller Simulator</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --surface:#f4f6f9;
+    --surface2:#e7ebf0;
+    --line:#d8dee6;
+    --txt:#1f2733;
+    --muted:#67727f;
+    --accent:#2f6fb3;
+    --accent-dark:#275d96;
+    --accent-soft:#e8f0f8;
+    --ok:#2e7d52;
+    --warn:#a86a10;
+    --warn-soft:#faf0db;
+    --danger:#c0392b;
+    --danger-soft:#fbe9e6;
+    --violet:#6a4fa3;
+    --violet-soft:#efeafa;
+    --r:6px; --r2:9px;
+    /* Typography: formal serif for headings, clean sans for UI / data / plots */
+    --font-head: Georgia, "Times New Roman", "Cambria", serif;
+    --font-ui: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:var(--font-ui);font-size:14px;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  header{padding:16px 20px;border-bottom:1px solid var(--line);background:var(--bg)}
+  header h1{margin:0;font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:.2px;color:var(--txt)}
+  header p{margin:5px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;align-items:start}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+  .panel{background:var(--bg);border:1px solid var(--line);border-radius:var(--r2);padding:14px}
+  aside.panel{max-height:calc(100vh - 116px);overflow:auto;position:sticky;top:16px}
+  aside.panel::-webkit-scrollbar{width:10px}
+  aside.panel::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:6px;border:2px solid var(--bg)}
+  .grp{border:1px solid var(--line);border-radius:var(--r);margin:0 0 10px;overflow:hidden;background:var(--surface)}
+  .grp>summary{cursor:pointer;padding:10px 12px;font-family:var(--font-head);font-weight:700;font-size:13.5px;list-style:none;color:var(--txt);
+    display:flex;justify-content:space-between;align-items:center;user-select:none}
+  .grp>summary:hover{color:var(--accent)}
+  .grp>summary::-webkit-details-marker{display:none}
+  .grp>summary::after{content:"+";color:var(--muted);font-weight:600;font-size:15px;line-height:1}
+  .grp[open]>summary::after{content:"\2013"}
+  .grp .body{padding:6px 12px 12px;background:var(--bg);border-top:1px solid var(--line)}
+  .prow{margin:11px 0}
+  .prow:first-child{margin-top:10px}
+  .row{display:grid;grid-template-columns:1fr 86px;gap:10px;align-items:center}
+  .row label{color:var(--txt);font-size:12.5px;line-height:1.25;font-weight:500}
+  .row input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);font-family:inherit;
+    border-radius:var(--r);padding:6px 8px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+  .row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .unit{color:var(--muted);font-size:11px;display:block;text-align:left;margin-top:2px;font-weight:400}
+  .slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;margin-top:9px;
+    background:var(--surface2);border-radius:3px;outline:none;cursor:pointer}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line);cursor:pointer}
+  .slider::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--accent);
+    border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line);cursor:pointer}
+  .slider:hover::-webkit-slider-thumb{background:var(--accent-dark)}
+  .hint{color:var(--muted);font-size:11px;margin:5px 0 0}
+  .derived{font-size:12px;color:var(--muted);line-height:1.6}
+  .derived b{color:var(--txt);font-weight:600}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  button{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:var(--r);
+    padding:8px 13px;font-size:13px;cursor:pointer;font-weight:600;font-family:inherit;
+    transition:background .12s,border-color .12s,color .12s}
+  button:hover{background:var(--surface);border-color:#c3cbd5}
+  button:active{background:var(--surface2)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}
+  button.small{padding:6px 11px;font-size:12.5px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .stagewrap{display:grid;gap:16px}
+  .stage{position:relative}
+  canvas{width:100%;display:block;border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+  #anim{height:430px}
+  #plots{height:430px}
+  .plothead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
+  .plottitle{font-family:var(--font-head);font-weight:700;color:var(--txt);font-size:13.5px}
+  .verdict{font-weight:600;font-size:13px;margin-bottom:10px;padding:9px 11px;border-radius:var(--r);
+    background:var(--surface);border:1px solid var(--line);color:var(--txt)}
+  .verdict.better{color:var(--ok);background:#eef6f1;border-color:#bfe0cc}
+  .verdict.worse{color:var(--danger);background:#fbeeec;border-color:#eab8b0}
+  .verdict.same{color:var(--muted)}
+  table.metrics{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.metrics th,table.metrics td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);
+    font-variant-numeric:tabular-nums}
+  table.metrics th{color:var(--muted);font-weight:600}
+  table.metrics td:first-child,table.metrics th:first-child{text-align:left;font-variant-numeric:normal;color:var(--txt)}
+  table.metrics tr:last-child td{border-bottom:none}
+  table.metrics tr.sect td{background:var(--surface);color:var(--muted);font-weight:700;text-align:left;
+    font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:5px 9px}
+  table.metrics tr.scorerow td{font-weight:650;background:#fafbfc}
+  .chg-better{color:var(--ok);font-weight:600}
+  .chg-worse{color:var(--danger);font-weight:600}
+  .chg-same{color:var(--muted)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .toolbar .sp{flex:1}
+  .speed{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px}
+  .speed input{width:110px}
+  .speed b{color:var(--txt);font-variant-numeric:tabular-nums;min-width:34px}
+  .chk{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;cursor:pointer;user-select:none}
+  .chk input{width:15px;height:15px;accent-color:var(--accent)}
+  .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  @media(max-width:560px){.readouts{grid-template-columns:repeat(2,1fr)}}
+  .ro{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 11px}
+  .ro .k{color:var(--muted);font-size:11px}
+  .ro .v{font-size:18px;font-weight:680;font-variant-numeric:tabular-nums;margin-top:2px;color:var(--txt)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--line);
+    background:var(--surface);color:var(--muted)}
+  .chip.run.on{background:var(--accent-soft);border-color:#bcd6ec;color:var(--accent-dark)}
+  .chip.sat.on{background:var(--warn-soft);border-color:#e8cf9a;color:var(--warn)}
+  .chip.rail.on{background:var(--violet-soft);border-color:#d3c6ec;color:var(--violet)}
+  .chip.trip.on{background:var(--danger-soft);border-color:#eab8b0;color:var(--danger)}
+  .note{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:10px}
+  .kbd{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:11px;
+    color:var(--txt);font-family:inherit}
+  .flag{color:var(--warn);font-weight:600}
+  /* ---- view tabs ---- */
+  .tabs{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .tabs button{border:none;background:none;border-radius:0;padding:10px 16px;cursor:pointer;
+    font-family:var(--font-head);font-weight:700;font-size:13.5px;color:var(--muted);
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button:hover{color:var(--txt);background:var(--surface)}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  #views{min-width:0}
+  /* ---- multi-angle validation view ---- */
+  .multirow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .multirow label{font-size:12.5px;color:var(--txt);font-weight:500}
+  .multirow input[type=text]{flex:1;min-width:170px;background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:var(--r);padding:7px 9px;font-size:13px;font-family:inherit;
+    font-variant-numeric:tabular-nums}
+  .multirow input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  #multiPlots{height:470px}
+  .tscroll{overflow-x:auto}
+  .tscroll table.metrics th,.tscroll table.metrics td{white-space:nowrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>Single Inverted Pendulum - PD Controller Simulator</h1>
+  <p>Full nonlinear cart-pole dynamics (rod mass m₂ + end bob m₁) · dual PD control · motor / rail / sensor / safety limits.
+     Adjust any parameter on the left. <span class="kbd">Space</span> run/pause · <span class="kbd">R</span> reset · <span class="kbd">S</span> step · <span class="kbd">D</span> disturb.</p>
+</header>
+
+<nav class="tabs">
+  <button id="tabSingle" class="active">Single-Angle Tuning</button>
+  <button id="tabMulti">Multi-Angle Validation</button>
+</nav>
+
+<div class="wrap">
+  <!-- ================= PARAMETER PANEL ================= -->
+  <aside class="panel">
+    <div class="btns">
+      <button id="btnDefault">Reset to defaults</button>
+    </div>
+    <div class="note" id="presetNote"></div>
+    <div id="paramHost"></div>
+
+    <details class="grp" open>
+      <summary>Derived / model values</summary>
+      <div class="body derived" id="derived"></div>
+    </details>
+
+    <div class="note" id="assump"></div>
+  </aside>
+
+  <!-- ================= VIEWS (tabbed) ================= -->
+  <div id="views">
+
+  <!-- ============ VIEW 1: SINGLE-ANGLE TUNING (unchanged) ============ -->
+  <main class="stagewrap" id="viewSingle">
+    <div class="panel stage">
+      <div class="toolbar">
+        <button class="primary" id="btnRun">Start</button>
+        <button id="btnReset">Reset</button>
+        <button id="btnStep">Step</button>
+        <button id="btnDisturb">Disturb</button>
+        <span class="sp"></span>
+        <label class="chk"><input type="checkbox" id="chkQuant" checked> sensor quantization</label>
+        <span class="speed">speed <input type="range" id="speed" min="0.1" max="2" step="0.1" value="1"><b id="speedv">1.0×</b></span>
+      </div>
+
+      <div class="readouts">
+        <div class="ro"><div class="k">time t (s)</div><div class="v" id="roT">0.000</div></div>
+        <div class="ro"><div class="k">angle θ (deg)</div><div class="v" id="roTh">0.0</div></div>
+        <div class="ro"><div class="k">position x (m)</div><div class="v" id="roX">0.000</div></div>
+        <div class="ro"><div class="k">force F (N)</div><div class="v" id="roF">0.00</div></div>
+      </div>
+      <div class="chips">
+        <span class="chip run"   id="cRun">paused</span>
+        <span class="chip sat"   id="cSat">force ok</span>
+        <span class="chip rail"  id="cRail">rail ok</span>
+        <span class="chip trip"  id="cTrip">upright</span>
+      </div>
+
+      <canvas id="anim"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="plothead">
+        <span class="plottitle">Time-series — angle, position, force</span>
+        <button id="btnDownload" class="small">Download graphs (PNG)</button>
+      </div>
+      <canvas id="plots"></canvas>
+    </div>
+
+    <div class="panel">
+      <div class="plothead">
+        <span class="plottitle">Tuning tracker — this run vs best run</span>
+        <button id="btnClearBest" class="small">Clear best</button>
+      </div>
+      <div class="verdict" id="verdict"></div>
+      <table class="metrics" id="metricsTable"></table>
+      <div class="note" id="metricsNote"></div>
+    </div>
+  </main>
+
+  <!-- ============ VIEW 2: MULTI-ANGLE VALIDATION ============ -->
+  <main class="stagewrap" id="viewMulti" style="display:none">
+    <div class="panel">
+      <div class="plothead"><span class="plottitle">Multi-Angle Validation</span></div>
+      <div class="note" style="margin-top:4px">
+        This page is <b>not</b> for tuning one case manually — use the Single-Angle Tuning tab for that.
+        It validates whether the PD gains currently set in the parameter panel (left) hold the pendulum
+        upright across <b>several</b> initial angles at once, while also keeping the cart position x
+        controlled. All other simulator settings (Ts, Tstop, limits, sensor quantization) are used as-is.
+      </div>
+      <div class="multirow">
+        <label>Starting angles (deg):</label>
+        <input type="text" id="multiAngles" value="2, 5, 10, 15">
+        <button class="primary" id="btnRunMulti">Run Multi-Angle Test</button>
+      </div>
+      <div class="note" id="multiStatus">Each angle is simulated head-to-tail with identical gains; results appear below.</div>
+    </div>
+
+    <div class="panel" id="multiSummaryPanel" style="display:none">
+      <div class="plothead"><span class="plottitle">Summary</span></div>
+      <div class="verdict" id="multiVerdict"></div>
+      <div class="readouts" id="multiCards" style="margin-bottom:0"></div>
+      <div class="note" id="multiGainsNote"></div>
+    </div>
+
+    <div class="panel" id="multiTablePanel" style="display:none">
+      <div class="plothead"><span class="plottitle">Per-angle results</span></div>
+      <div class="tscroll"><table class="metrics" id="multiTable"></table></div>
+      <div class="note">Columns marked * are the ones used in the scores; raw peaks are shown for information.
+        θ score = 1·extra-peak θ + 5·RMS + 0.5·settling + 0.5·reversals + 2·|final|.
+        x score = 1·extra-peak x + 5·RMS + 0.5·settling + 0.5·reversals + 2·|final|
+        (extra peak = how far the signal swung beyond its starting value).
+        Total = θ score + 0.5·x score + 100 if it fell. Lower is better.</div>
+    </div>
+
+    <div class="panel" id="multiPlotsPanel" style="display:none">
+      <div class="plothead"><span class="plottitle">Responses — θ and x vs time (one curve per starting angle)</span></div>
+      <canvas id="multiPlots"></canvas>
+    </div>
+
+    <div class="panel" id="multiBestPanel" style="display:none">
+      <div class="plothead">
+        <span class="plottitle">Best multi-angle result</span>
+        <button id="btnClearMultiBest" class="small">Clear best</button>
+      </div>
+      <div class="note" id="multiBestInfo" style="margin-top:0"></div>
+      <table class="metrics" id="multiBestTable"></table>
+    </div>
+  </main>
+
+  </div><!-- /views -->
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   MODULE: PARAMS  — schema-driven inputs; every (adjustable) field gets
+   an input box in its correct units. P{} holds raw + derived values.
+   ===================================================================== */
+const SCHEMA = [
+  {g:"Cart", f:[
+    {k:"M", l:"M — cart mass", u:"kg", v:0.50, s:0.01, mn:0.05, mx:5},
+  ]},
+  {g:"Pendulum", f:[
+    {k:"m1", l:"m₁ — end mass (bob)", u:"kg", v:0.10, s:0.01, mn:0.01, mx:2},
+    {k:"m2", l:"m₂ — rod mass", u:"kg", v:0.03, s:0.01, mn:0.01, mx:1},
+    {k:"l",  l:"l — rod length", u:"m", v:0.250, s:0.005, mn:0.05, mx:1, hint:"0.250 m = 250 mm"},
+  ]},
+  {g:"Motor / drive", f:[
+    {k:"pulley_radius",   l:"pulley radius", u:"m", v:0.010, s:0.001, mn:0.002, mx:0.05},
+    {k:"max_torque",      l:"max motor torque", u:"N·m", v:0.45, s:0.01, mn:0.05, mx:5},
+  ]},
+  {g:"Rail", f:[
+    {k:"rail_l", l:"rail length", u:"m", v:0.500, s:0.01, mn:0.2, mx:2},
+    {k:"cart_l", l:"cart length", u:"m", v:0.112, s:0.001, mn:0.02, mx:0.5},
+  ]},
+  {g:"PD — angle θ", f:[
+    {k:"Kp_theta", l:"Kp_θ", u:"N/rad", v:1, s:0.5, mn:0, mx:100},
+    {k:"Kd_theta", l:"Kd_θ", u:"N·s/rad", v:0.1, s:0.05, mn:0, mx:20},
+  ]},
+  {g:"PD — position x", f:[
+    {k:"Kp_x", l:"Kp_x", u:"N/m", v:0, s:0.5, mn:0, mx:50},
+    {k:"Kd_x", l:"Kd_x", u:"N·s/m", v:0, s:0.5, mn:0, mx:20},
+  ]},
+  {g:"Initial conditions", f:[
+    {k:"theta0_deg", l:"θ₀ — initial angle", u:"deg", v:5, s:0.5, mn:-30, mx:30},
+  ]},
+  {g:"Simulation", f:[
+    {k:"Ts",    l:"Ts — time step", u:"s", v:0.005, s:0.001, mn:0.001, mx:0.02},
+    {k:"Tstop", l:"Tstop — duration", u:"s", v:10, s:0.5, mn:1, mx:60},
+  ]},
+  {g:"Safety limits", f:[
+    {k:"max_theta_deg", l:"max |θ| (trip)", u:"deg", v:30, s:1, mn:5, mx:90},
+  ]},
+];
+const ENCODER_BITS = 12;    // P3022 absolute encoder — fixed hardware spec (no UI adjuster)
+const ADC_BITS     = 10;    // Arduino ADC — fixed hardware spec (no UI adjuster)
+const TAU_D = 0.02; // derivative-filter time constant (s) — tames encoder-quantised D term
+
+const P = {};               // live parameter object
+function $(id){return document.getElementById(id);}
+
+function buildPanel(){
+  const host = $("paramHost"); let html = "";
+  for(const grp of SCHEMA){
+    const open = /Pendulum|PID — angle/.test(grp.g) ? "open" : "open";
+    html += `<details class="grp" open><summary>${grp.g}</summary><div class="body">`;
+    for(const f of grp.f){
+      html += `<div class="prow">`+
+              `<div class="row"><label>${f.l}<span class="unit">${f.u}</span></label>`+
+              `<input type="number" id="in_${f.k}" step="${f.s}" value="${f.v}"></div>`+
+              `<input type="range" class="slider" id="sl_${f.k}" min="${f.mn}" max="${f.mx}" step="${f.s}" value="${f.v}">`;
+      if(f.hint) html += `<div class="hint">${f.hint}</div>`;
+      html += `</div>`;
+    }
+    html += `</div></details>`;
+  }
+  host.innerHTML = html;
+  for(const grp of SCHEMA) for(const f of grp.f){
+    const box=$("in_"+f.k), sl=$("sl_"+f.k);
+    box.addEventListener("input", ()=>{ sl.value=box.value; onParamChange(); }); // box drives slider
+    sl.addEventListener("input", ()=>{ box.value=sl.value; onParamChange(); });  // slider drives box
+  }
+}
+
+// Push current box values onto the sliders (after programmatic changes: presets, reset).
+function syncSliders(){
+  for(const grp of SCHEMA) for(const f of grp.f){ const sl=$("sl_"+f.k); if(sl) sl.value=$("in_"+f.k).value; }
+}
+
+function readParams(){
+  for(const grp of SCHEMA) for(const f of grp.f){
+    let v = parseFloat($("in_"+f.k).value);
+    if(!isFinite(v)) v = f.v;
+    P[f.k] = v;
+  }
+  P.bits = ENCODER_BITS;   // fixed hardware specs (no longer UI-adjustable)
+  P.a_bits = ADC_BITS;
+  // Fixed (no longer UI-adjustable): gravity, integral gains held at 0 (PD only)
+  // and all initial conditions other than θ₀ start at rest / centre.
+  P.g = 9.81;
+  P.Ki_theta = 0; P.Ki_x = 0;
+  P.x0 = 0; P.x_dot0 = 0; P.theta_dot0 = 0;
+  // Lagrange coefficients (see header derivation):  A x'' + B cosθ θ'' - B sinθ θ'² = F ; B cosθ x'' + C θ'' - B g sinθ = 0
+  P.A_ = P.M + P.m1 + P.m2;                 // total mass
+  P.B_ = P.l * (P.m1 + P.m2/2);             // first moment about pivot
+  P.C_ = P.l*P.l * (P.m1 + P.m2/3);         // inertia about pivot
+  P.Delta = P.A_*P.C_ - P.B_*P.B_;
+  P.max_cart_force = P.max_torque / P.pulley_radius;
+  P.usable_l = P.rail_l - P.cart_l;
+  P.max_x = P.usable_l/2; P.min_x = -P.max_x;
+  P.sensorSteps = Math.pow(2, P.bits);  P.res_deg = 360/P.sensorSteps; P.res_rad = P.res_deg*Math.PI/180;
+  P.adcSteps    = Math.pow(2, P.a_bits);P.a_res_deg = 360/P.adcSteps;  P.a_res_rad = P.a_res_deg*Math.PI/180;
+  P.eff_res_deg = Math.max(P.res_deg, P.a_res_deg);   // coarser device dominates effective resolution
+  P.eff_res_rad = P.eff_res_deg*Math.PI/180;
+  P.max_theta_rad = P.max_theta_deg*Math.PI/180;
+  P.theta0 = P.theta0_deg*Math.PI/180;
+  P.olPole = (P.Delta>0)? Math.sqrt(Math.max(0,P.A_*P.B_*P.g/P.Delta)) : NaN;
+  P.minKp  = P.A_*P.g;
+  return P;
+}
+
+function fmt(x,n){ if(!isFinite(x)) return "—"; return x.toFixed(n); }
+function updateDerived(){
+  readParams();
+  $("derived").innerHTML =
+    `Total mass <b>A = ${fmt(P.A_,3)}</b> kg · <b>B = ${fmt(P.B_,5)}</b> · <b>C = ${fmt(P.C_,5)}</b> · <b>Δ = ${fmt(P.Delta,6)}</b><br>`+
+    `Max cart force = <b>${fmt(P.max_cart_force,2)} N</b> (from torque/pulley)<br>`+
+    `Usable travel = <b>${fmt(P.usable_l*1000,0)} mm</b> → x ∈ [<b>${fmt(P.min_x,3)}</b>, <b>${fmt(P.max_x,3)}</b>] m<br>`+
+    `Sensor 2<sup>${P.bits}</sup>=${P.sensorSteps} steps → <b>${fmt(P.res_deg,4)}°</b> · ADC 2<sup>${P.a_bits}</sup> → <b>${fmt(P.a_res_deg,4)}°</b><br>`+
+    `Effective angle quantum = <b>${fmt(P.eff_res_deg,4)}°</b><br>`+
+    `Open-loop unstable pole ≈ <b>${fmt(P.olPole,2)} rad/s</b><br>`+
+    `Min Kp_θ to balance (=A·g) ≈ <span class="flag"><b>${fmt(P.minKp,2)} N/rad</b></span>`;
+  // live actuator hints driving the animation/plot limits
+  drawStatic();
+}
+function onParamChange(){ updateDerived(); }
+
+// The schema `v` values ARE the default setting. Restore every input + UI control to it.
+function resetToDefaults(){
+  for(const grp of SCHEMA) for(const f of grp.f) $("in_"+f.k).value = f.v;
+  syncSliders();
+  $("chkQuant").checked = true; quantOn = true;
+  $("speed").value = 1; speed = 1; $("speedv").textContent = "1.0×";
+  updateDerived();
+  initSim(); setRunBtn();
+  flashPreset("All parameters reset to default settings.");
+}
+
+/* =====================================================================
+   MODULE: DYNAMICS  — nonlinear cart-pole EOM + RK4 integrator.
+   state y = [x, x', θ, θ'] ; F = horizontal cart force [N]. θ from vertical (0 = up).
+   ===================================================================== */
+function deriv(y, F){
+  const th=y[2], thd=y[3];
+  const A_=P.A_, B_=P.B_, C_=P.C_, g=P.g;
+  const s=Math.sin(th), c=Math.cos(th);
+  const det = A_*C_ - B_*B_*c*c;
+  const R1 = F + B_*s*thd*thd;   // RHS of x-equation
+  const R2 = B_*g*s;             // RHS of θ-equation
+  const xdd  = ( C_*R1 - B_*c*R2)/det;
+  const thdd = (-B_*c*R1 + A_*R2)/det;
+  return [y[1], xdd, thd, thdd];
+}
+function rk4(y, F, h){
+  const k1=deriv(y,F);
+  const k2=deriv([y[0]+0.5*h*k1[0],y[1]+0.5*h*k1[1],y[2]+0.5*h*k1[2],y[3]+0.5*h*k1[3]],F);
+  const k3=deriv([y[0]+0.5*h*k2[0],y[1]+0.5*h*k2[1],y[2]+0.5*h*k2[2],y[3]+0.5*h*k2[3]],F);
+  const k4=deriv([y[0]+h*k3[0],y[1]+h*k3[1],y[2]+h*k3[2],y[3]+h*k3[3]],F);
+  return [0,1,2,3].map(i=> y[i] + (h/6)*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));
+}
+
+/* =====================================================================
+   MODULE: PD_CONTROLLER  — dual PD, discrete (held over Ts, ZOH).
+   Setpoints θ*=0 (upright), x*=0 (centre). Integral gains are fixed at 0,
+   so the integral terms below always contribute nothing (PD control).
+   Stabilising sign (verified in-sim; cart-pole is non-minimum-phase, so the
+   recentring position feedback is the "counter-intuitive" one — positive gains
+   pull the cart back to centre):
+        F = (Kp_θ θ + Kd_θ θ̇)  +  (Kp_x x + Kd_x ẋ)
+   • angle measured via encoder/ADC quantum (optional)
+   • derivative on measurement, low-pass filtered (τ=20 ms)
+   • actuator saturation
+   ===================================================================== */
+function controller(st=S){
+  if(st.tripped){ st.F=0; st.satHit=false; return 0; }
+  const Ts=P.Ts;
+  const thMeas = quantOn ? Math.round(st.theta/P.eff_res_rad)*P.eff_res_rad : st.theta;
+  const rawD = (thMeas - st.thMeasPrev)/Ts;
+  st.dThF += (rawD - st.dThF)*(Ts/(TAU_D+Ts));
+  st.thMeasPrev = thMeas;
+
+  const Fth = P.Kp_theta*thMeas + P.Ki_theta*st.Ith + P.Kd_theta*st.dThF;
+  const Fx  = P.Kp_x*st.x       + P.Ki_x*st.Ix     + P.Kd_x*st.xdot;
+  let Fcmd = Fth + Fx;
+
+  const Fmax=P.max_cart_force;
+  let F = Math.max(-Fmax, Math.min(Fmax, Fcmd));
+  st.satHit = (Math.abs(F-Fcmd) > 1e-9);
+  if(!st.satHit){ st.Ith += thMeas*Ts; st.Ix += st.x*Ts; }   // anti-windup: pause integration when saturated
+  st.F=F; return F;
+}
+
+/* =====================================================================
+   MODULE: SIMULATION  — state container + fixed-step advance.
+   ===================================================================== */
+let S = null, acc = 0;
+// Build a fresh simulation state. With no argument it uses the panel's θ₀ (the
+// interactive sim); the multi-angle batch passes an override in degrees.
+function makeState(theta0DegOverride){
+  readParams();
+  const th0=(theta0DegOverride!=null) ? theta0DegOverride*Math.PI/180 : P.theta0;
+  return {
+    t:0, x:P.x0, xdot:P.x_dot0, theta:th0, thetadot:P.theta_dot0,
+    F:0, Ith:0, Ix:0, dThF:0,
+    thMeasPrev: quantOn ? Math.round(th0/P.eff_res_rad)*P.eff_res_rad : th0,
+    tripped:false, tripTime:null, railHit:false, satHit:false, blewUp:false,
+    running:false,
+    data:{t:[],th:[],x:[],F:[]}
+  };
+}
+function initSim(){
+  S = makeState();
+  acc=0; record();
+  runFinalized=false;          // a fresh run has not been scored yet (tuning tracker)
+}
+function record(st=S){
+  const d=st.data;
+  d.t.push(st.t); d.th.push(st.theta*180/Math.PI); d.x.push(st.x); d.F.push(st.F);
+  if(d.t.length>60000){ d.t.shift();d.th.shift();d.x.shift();d.F.shift(); }
+}
+function stepOnce(st=S){
+  if(st.t >= P.Tstop){ st.running=false; return false; }
+  const F = controller(st);
+  let y = rk4([st.x,st.xdot,st.theta,st.thetadot], F, P.Ts);
+  st.x=y[0]; st.xdot=y[1]; st.theta=y[2]; st.thetadot=y[3];
+
+  // hard rail end-stops (inelastic)
+  st.railHit=false;
+  if(st.x > P.max_x){ st.x=P.max_x; if(st.xdot>0)st.xdot=0; st.railHit=true; }
+  if(st.x < P.min_x){ st.x=P.min_x; if(st.xdot<0)st.xdot=0; st.railHit=true; }
+
+  // safety trip: cut motor once angle exceeds limit (pendulum then falls freely)
+  if(!st.tripped && Math.abs(st.theta) >= P.max_theta_rad){ st.tripped=true; st.tripTime=st.t; }
+
+  st.t += P.Ts;
+  record(st);
+  if(!isFinite(st.theta) || Math.abs(st.x)>50){ st.running=false; st.blewUp=true; }
+  return true;
+}
+
+/* =====================================================================
+   MODULE: ANIMATION  — 2D cart/rail/rod/bob on canvas.
+   ===================================================================== */
+const acv=$("anim"), actx=acv.getContext("2d");
+let aW=0,aH=0;
+const pcv=$("plots"), pctx=pcv.getContext("2d");
+let pW=0,pH=0;
+
+function fitCanvas(cv,ctx){
+  const dpr=window.devicePixelRatio||1;
+  const r=cv.getBoundingClientRect();
+  cv.width=Math.max(20,Math.round(r.width*dpr));
+  cv.height=Math.max(20,Math.round(r.height*dpr));
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return [r.width, r.height];
+}
+function fitAll(){ [aW,aH]=fitCanvas(acv,actx); [pW,pH]=fitCanvas(pcv,pctx); }
+
+function rr(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  if(ctx.roundRect){ ctx.roundRect(x,y,w,h,r); return; }
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+
+function drawScene(){
+  const ctx=actx, W=aW, H=aH;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,W,H);
+
+  // ---- world->screen mapping (metres). up = +y in world. ----
+  const halfRail=P.rail_l/2, margin=0.04;
+  const worldW=(halfRail+margin)*2;
+  const cartH=0.045;
+  const topWorld=cartH + P.l + 0.05;      // headroom for upright bob
+  const botWorld=0.07;
+  const worldH=topWorld+botWorld;
+  const sx=(W*0.94)/worldW, sy=(H*0.92)/worldH;
+  const sc=Math.min(sx,sy);
+  const cx=W/2, railPy=H - botWorld*sc - 28;
+  const X=wx=> cx + wx*sc;
+  const Y=wy=> railPy - wy*sc;
+
+  // rail (flat bar, square corners)
+  ctx.fillStyle="#cfd6df";
+  ctx.fillRect(X(-halfRail), railPy-5, halfRail*2*sc, 10);
+  ctx.strokeStyle="#aeb7c4"; ctx.lineWidth=1;
+  ctx.strokeRect(X(-halfRail), railPy-5, halfRail*2*sc, 10);
+  // end stops (square posts)
+  ctx.fillStyle="#8a94a3";
+  for(const e of [-halfRail,halfRail]){ ctx.fillRect(X(e)-3, railPy-16, 6, 32); }
+  // cart-centre travel limits (dashed)
+  ctx.strokeStyle="#c4ccd7";
+  ctx.setLineDash([4,5]); ctx.lineWidth=1;
+  for(const e of [P.min_x,P.max_x]){ ctx.beginPath(); ctx.moveTo(X(e),Y(topWorld)); ctx.lineTo(X(e),railPy+18); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // centre reference
+  ctx.strokeStyle="#e3e8ee"; ctx.beginPath(); ctx.moveTo(X(0),Y(topWorld)); ctx.lineTo(X(0),railPy); ctx.stroke();
+
+  // cart (boxy rectangle, square corners)
+  const cw=P.cart_l*sc, ch=cartH*sc, cxp=X(S.x), cyTop=railPy-ch;
+  ctx.fillStyle="#5b6b7d"; ctx.fillRect(cxp-cw/2, cyTop, cw, ch);
+  ctx.strokeStyle="#46535f"; ctx.lineWidth=1.5; ctx.strokeRect(cxp-cw/2, cyTop, cw, ch);
+  // wheels
+  ctx.fillStyle="#2f3946"; ctx.strokeStyle="#67727f"; ctx.lineWidth=1.5;
+  for(const wxp of [cxp-cw*0.3, cxp+cw*0.3]){ ctx.beginPath(); ctx.arc(wxp, railPy+2, Math.max(4,ch*0.22), 0, 7); ctx.fill(); ctx.stroke(); }
+
+  // pendulum
+  const pivX=cxp, pivY=cyTop;
+  const bx=X(S.x + P.l*Math.sin(S.theta));
+  const by=Y(cartH + P.l*Math.cos(S.theta));
+  // rod
+  ctx.lineCap="round"; ctx.lineWidth=Math.max(4, sc*0.012);
+  ctx.strokeStyle = S.tripped ? "#c0392b" : "#46535f";
+  ctx.beginPath(); ctx.moveTo(pivX,pivY); ctx.lineTo(bx,by); ctx.stroke();
+  // pivot
+  ctx.fillStyle="#2f3946"; ctx.beginPath(); ctx.arc(pivX,pivY,4.5,0,7); ctx.fill();
+  // bob (size ~ mass^(1/3); flat fill, same colour as the cart wheels)
+  const br=Math.max(8, Math.min(34, 34*Math.cbrt(P.m1)));
+  ctx.fillStyle = S.tripped ? "#c0392b" : "#2f3946";
+  ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
+  ctx.strokeStyle = S.tripped ? "#922c22" : "#67727f"; ctx.lineWidth=1.5; ctx.stroke();
+
+  // force arrow at cart
+  if(Math.abs(S.F)>1e-3 && !S.tripped){
+    const aMax=70, ax=cxp, ay=cyTop+ch/2;
+    const len=(S.F/P.max_cart_force)*aMax;
+    const ex=ax+len;
+    ctx.strokeStyle=S.satHit?"#b04a12":"#c77d11"; ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ex,ay); ctx.stroke();
+    const d=Math.sign(len)||1;
+    ctx.beginPath(); ctx.moveTo(ex,ay); ctx.lineTo(ex-9*d,ay-5); ctx.lineTo(ex-9*d,ay+5); ctx.closePath(); ctx.fill();
+  }
+
+  // angle annotation near bob
+  ctx.fillStyle="#67727f"; ctx.font="12px Segoe UI";
+  ctx.fillText(`θ = ${(S.theta*180/Math.PI).toFixed(1)}°`, bx+br+6, by);
+
+  // banners
+  ctx.font="bold 16px Georgia, 'Times New Roman', serif"; ctx.textAlign="center";
+  if(S.blewUp){ ctx.fillStyle="#c0392b"; ctx.fillText("Diverged — reduce gains or Ts, then Reset", W/2, 26); }
+  else if(S.tripped){ ctx.fillStyle="#c0392b"; ctx.fillText(`Safety trip — |θ| exceeded ${P.max_theta_deg}° at t=${fmt(S.tripTime,2)} s — motor cut`, W/2, 26); }
+  else if(S.t>=P.Tstop){ ctx.fillStyle="#2e7d52"; ctx.fillText(`Run complete (t = ${fmt(P.Tstop,2)} s)`, W/2, 26); }
+  ctx.textAlign="left";
+}
+function drawStatic(){ if(S) drawScene(); }   // redraw when params change while paused
+
+/* =====================================================================
+   MODULE: PLOT  — three stacked time-series subplots.
+   ===================================================================== */
+function subplot(x0,y0,w,h, t, series, lines, title){
+  const ctx=pctx;
+  ctx.fillStyle="#fafbfc"; rr(ctx,x0,y0,w,h,6); ctx.fill();
+  ctx.strokeStyle="#e3e8ee"; ctx.lineWidth=1; ctx.stroke();
+  // y-range
+  let ymin=Infinity,ymax=-Infinity;
+  for(const s of series) for(let i=0;i<s.d.length;i++){ const v=s.d[i]; if(v<ymin)ymin=v; if(v>ymax)ymax=v; }
+  for(const L of lines){ if(L.v<ymin)ymin=L.v; if(L.v>ymax)ymax=L.v; }
+  if(!isFinite(ymin)){ymin=-1;ymax=1;}
+  if(ymax-ymin<1e-9){ymin-=1;ymax+=1;}
+  const pad=(ymax-ymin)*0.14; ymin-=pad; ymax+=pad;
+  const tmax=Math.max(P.Tstop, t.length?t[t.length-1]:1, 1e-6);
+  const PX=tt=> x0 + 46 + (tt/tmax)*(w-58);
+  const PY=vv=> y0 + 8 + (1-(vv-ymin)/(ymax-ymin))*(h-26);
+
+  // gridlines + y labels
+  ctx.fillStyle="#67727f"; ctx.font="10px Segoe UI"; ctx.textAlign="right";
+  for(let i=0;i<=2;i++){
+    const v=ymin+(ymax-ymin)*i/2, yy=PY(v);
+    ctx.strokeStyle="#eaedf2"; ctx.beginPath(); ctx.moveTo(x0+46,yy); ctx.lineTo(x0+w-12,yy); ctx.stroke();
+    ctx.fillText(v.toFixed(Math.abs(ymax)<2?2:1), x0+42, yy+3);
+  }
+  // limit lines
+  for(const L of lines){ ctx.strokeStyle=L.c; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+    const yy=PY(L.v); ctx.beginPath(); ctx.moveTo(x0+46,yy); ctx.lineTo(x0+w-12,yy); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // x ticks
+  ctx.textAlign="center"; ctx.fillStyle="#67727f";
+  for(let i=0;i<=4;i++){ const tt=tmax*i/4; ctx.fillText(tt.toFixed(tmax<2?2:1), PX(tt), y0+h-3); }
+  // series
+  for(const s of series){
+    ctx.strokeStyle=s.c; ctx.lineWidth=1.8; ctx.beginPath();
+    for(let i=0;i<s.d.length;i++){ const px=PX(t[i]), py=PY(s.d[i]); if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+    ctx.stroke();
+  }
+  // title
+  ctx.textAlign="left"; ctx.fillStyle="#1f2733"; ctx.font="bold 13px Georgia, 'Times New Roman', serif";
+  ctx.fillText(title, x0+50, y0+15);
+}
+function drawPlots(){
+  pctx.clearRect(0,0,pW,pH);
+  pctx.fillStyle="#ffffff"; pctx.fillRect(0,0,pW,pH);
+  if(!S) return;
+  const d=S.data, gap=10, n=3;
+  const h=(pH-gap*(n-1))/n;
+  subplot(0, 0,        pW, h, d.t, [{d:d.th,c:"#2f6fb3"}],
+    [{v:P.max_theta_deg,c:"#d0584a"},{v:-P.max_theta_deg,c:"#d0584a"},{v:0,c:"#cdd5df"}], "Pendulum angle  θ  (deg)");
+  subplot(0, h+gap,    pW, h, d.t, [{d:d.x,c:"#2e8b6f"}],
+    [{v:P.max_x,c:"#d0584a"},{v:P.min_x,c:"#d0584a"},{v:0,c:"#cdd5df"}], "Cart position  x  (m)");
+  subplot(0, 2*(h+gap),pW, h, d.t, [{d:d.F,c:"#5a6bb0"}],
+    [{v:P.max_cart_force,c:"#c77d11"},{v:-P.max_cart_force,c:"#c77d11"},{v:0,c:"#cdd5df"}], "Cart force  F  (N)");
+}
+
+/* =====================================================================
+   MODULE: MAIN  — UI wiring + real-time loop (fixed Ts, accumulator).
+   ===================================================================== */
+let quantOn=true, speed=1, last=performance.now();
+
+function refreshReadouts(){
+  $("roT").textContent=fmt(S.t,3);
+  $("roTh").textContent=fmt(S.theta*180/Math.PI,1);
+  $("roX").textContent=fmt(S.x,3);
+  $("roF").textContent=fmt(S.F,2);
+  const set=(id,on,txt)=>{const e=$(id);e.classList.toggle("on",on);e.textContent=txt;};
+  set("cRun", S.running, S.running?"running":"paused");
+  set("cSat", S.satHit, S.satHit?"saturated":"force ok");
+  set("cRail",S.railHit,S.railHit?"rail limit":"rail ok");
+  set("cTrip",S.tripped,S.tripped?"tripped":"upright");
+}
+function setRunBtn(){ $("btnRun").textContent = S.running ? "Pause" : "Start"; }
+
+/* =====================================================================
+   MODULE: TUNING TRACKER — amplitude / oscillation metrics, this run vs BEST.
+   When a run reaches the end of its time window it is "scored": we measure how
+   big the swings were and how much it oscillated. Best runs are stored PER TEST
+   CASE (keyed by the starting angle θ₀), so a 10° start is only ever compared
+   against other 10° starts.
+   ===================================================================== */
+let bestRuns={};                            // test_case_key -> best metrics for that case
+let curMetrics=null, runFinalized=false;
+let cmpBaseline=null, cmpIsNewBest=false;   // what the last render compared against
+const SETTLE_BAND_DEG=2.0;   // θ is "settled" once |θ| stays under this [deg]
+const SETTLE_BAND_CM=2.0;    // x is "settled" once |x| stays under this [cm]
+const OSC_HYST_DEG=0.5;      // ignore θ wiggles below this when counting reversals [deg]
+const OSC_HYST_CM=0.5;       // ignore x wiggles below this when counting reversals [cm]
+// Score weights (same formula for θ in deg and x in cm).
+const W_PEAK=1.0;            // peak amplitude
+const W_RMS=5.0;             // steady-state RMS (persistent wobble)
+const W_SETTLE=0.5;          // settling time [s]
+const W_OSC=0.5;             // oscillation reversals
+const W_FINAL=2.0;           // |final value| (how well it ended up centred/upright)
+const TRIP_PENALTY=100.0;    // added once if the pendulum fell / safety tripped
+
+// Generic per-signal metrics: BOTH θ and x are measured by this same function,
+// so the two groups use identical criteria and an identical score formula.
+function signalMetrics(arr, t, settleBand, hyst){
+  const n=arr.length;
+  let peak=0, settleIdx=0;
+  for(let i=0;i<n;i++){
+    const a=Math.abs(arr[i]);
+    if(isFinite(a) && a>peak) peak=a;        // amplitude = biggest excursion
+    if(a>settleBand) settleIdx=i;             // last time it was outside the settle band
+  }
+  const settle=t[settleIdx];                  // settling time [s]
+  // steady-state amplitude: RMS over the last 40% of the run
+  const start=Math.floor(n*0.6); let ss=0,cnt=0;
+  for(let i=start;i<n;i++){ if(isFinite(arr[i])){ ss+=arr[i]*arr[i]; cnt++; } }
+  const rms=Math.sqrt(ss/Math.max(1,cnt));
+  // oscillation count = side-to-side reversals (with a hysteresis band)
+  let side=0, osc=0;
+  for(let i=0;i<n;i++){ const v=arr[i];
+    if(v>hyst){ if(side===-1)osc++; side=1; }
+    else if(v<-hyst){ if(side===1)osc++; side=-1; }
+  }
+  const fin=arr[n-1];                         // final value
+  // identical score formula for every signal (lower = better)
+  const part=W_PEAK*peak + W_RMS*rms + W_SETTLE*settle + W_OSC*osc + W_FINAL*Math.abs(fin);
+  return {peak,settle,rms,osc,fin,part};
+}
+
+// Measure the just-finished run from the recorded data (θ in deg, x in cm).
+function computeMetrics(){
+  const d=S.data, n=d.t.length;
+  if(n<5) return null;
+  const xcm=d.x.map(v=>v*100);                  // cart position in cm
+  const theta0=d.th[0];                         // the run's actual starting angle [deg]
+  const T=signalMetrics(d.th, d.t, SETTLE_BAND_DEG, OSC_HYST_DEG);   // angle group
+  const X=signalMetrics(xcm,  d.t, SETTLE_BAND_CM,  OSC_HYST_CM);    // cart group
+  const tripped=!!S.tripped || !!S.blewUp;
+  let score = T.part + X.part + (tripped?TRIP_PENALTY:0);
+  if(!isFinite(score)) score=1e6;
+  // test-case key: best runs are stored per starting angle, so runs are only
+  // ever compared against other runs with the same θ₀
+  const theta0_deg=+theta0.toFixed(1);
+  const key=`theta0_${theta0.toFixed(1)}_deg`;
+  // remember which gains produced this run (shown when it becomes the best)
+  const gains={Kp_theta:P.Kp_theta, Ki_theta:P.Ki_theta, Kd_theta:P.Kd_theta,
+               Kp_x:P.Kp_x, Ki_x:P.Ki_x, Kd_x:P.Kd_x};
+  return {tripped, th:T, x:X, thetaPart:T.part, xPart:X.part, score, gains, key, theta0_deg};
+}
+
+// Called once when a run ends: score it, compare with the saved best FOR THIS
+// TEST CASE (same starting angle), and promote it if it wins (lower = better).
+function finalizeRun(){
+  if(runFinalized) return;
+  const m=computeMetrics();
+  if(!m) return;
+  runFinalized=true;
+  curMetrics=m;
+  const prevBest=bestRuns[m.key]||null;                      // this test case's benchmark
+  cmpBaseline=prevBest;
+  cmpIsNewBest=(!prevBest || m.score<prevBest.score);
+  if(cmpIsNewBest) bestRuns[m.key]=m;                        // save the new best for this case
+  renderMetrics();
+}
+
+// Forget all saved benchmarks (every test case); the next finished run at each
+// starting angle becomes that test case's new best.
+function clearBest(){
+  bestRuns={}; curMetrics=null; cmpBaseline=null; cmpIsNewBest=false;
+  renderMetrics();
+}
+
+// Build the verdict text + the comparison table (current run vs the best run).
+function renderMetrics(){
+  const v=$("verdict"), tbl=$("metricsTable"), note=$("metricsNote");
+  if(!curMetrics){
+    v.className="verdict";
+    v.textContent="Let a run reach the end of its time window to record metrics. Best runs are saved per test case (starting angle θ₀), so each starting angle is only compared against its own best.";
+    tbl.innerHTML=""; note.textContent="";
+    return;
+  }
+  const c=curMetrics, b=cmpBaseline;   // b = this test case's best BEFORE this run (null on first)
+
+  // ---- overall verdict (always names the test case being compared) ----
+  const tc=`Test case θ₀ = ${c.theta0_deg.toFixed(1)}°`;
+  let txt, cls="";
+  if(!b){ txt=`${tc}: first recorded run — saved as the best for this test case (score ${c.score.toFixed(1)}). Change a gain and run again at the same θ₀ to try to beat it.`; }
+  else if(c.tripped && !b.tripped){ txt=`${tc}: worse than its best — the pendulum fell this run (the best run stayed upright).`; cls="worse"; }
+  else if(!c.tripped && b.tripped){ txt=`${tc}: new best — it stayed upright (the previous best fell). Score ${c.score.toFixed(1)} vs ${b.score.toFixed(1)}.`; cls="better"; }
+  else {
+    const imp=(b.score-c.score)/Math.max(1e-9,Math.abs(b.score)), pct=Math.round(Math.abs(imp)*100);
+    if(cmpIsNewBest && imp>0.03){ txt=`${tc}: new best — score ${c.score.toFixed(1)} vs previous best ${b.score.toFixed(1)} (${pct}% better). Saved for this test case.`; cls="better"; }
+    else if(cmpIsNewBest){ txt=`${tc}: marginal new best — score ${c.score.toFixed(1)} vs ${b.score.toFixed(1)}. Saved for this test case.`; cls="better"; }
+    else if(imp<-0.03){ txt=`${tc}: worse than its best — score ${c.score.toFixed(1)} vs best ${b.score.toFixed(1)} (${pct}% higher). Best run kept.`; cls="worse"; }
+    else { txt=`${tc}: about the same as its best — score ${c.score.toFixed(1)} vs ${b.score.toFixed(1)}. Best run kept.`; cls="same"; }
+  }
+  v.className="verdict"+(cls?(" "+cls):""); v.textContent=txt;
+
+  // ---- per-metric comparison vs the best run (lower is better for every row) ----
+  const f=(x,nd)=> (x==null||!isFinite(x))?"—":x.toFixed(nd);
+  const chg=(cur,best)=>{
+    if(b==null||best==null||!isFinite(best)) return {t:"—",c:"chg-same"};
+    const eps=Math.max(1e-9, Math.abs(best)*0.02);
+    if(Math.abs(cur-best)<=eps) return {t:"about the same",c:"chg-same"};
+    const better=cur<best;
+    return {t:better?"better":"worse", c:better?"chg-better":"chg-worse"};
+  };
+  const sign=x=> (isFinite(x)&&x>=0?"+":"");
+  // Both subsections use the SAME five criteria, built by the same row helper —
+  // only the signal (θ vs x) and its unit differ.
+  const groupRows=(cg,bg,u)=>[
+    [`Peak amplitude (${u})`, f(cg.peak,1), bg?f(bg.peak,1):"—", chg(cg.peak, bg&&bg.peak)],
+    ["Settling time (s)",     f(cg.settle,2), bg?f(bg.settle,2):"—", chg(cg.settle, bg&&bg.settle)],
+    [`Steady RMS (${u})`,     f(cg.rms,2), bg?f(bg.rms,2):"—", chg(cg.rms, bg&&bg.rms)],
+    ["Oscillation reversals", f(cg.osc,0), bg?f(bg.osc,0):"—", chg(cg.osc, bg&&bg.osc)],
+    [`Final value (${u})`,    sign(cg.fin)+f(cg.fin,2), bg?(sign(bg.fin)+f(bg.fin,2)):"—",
+                              chg(Math.abs(cg.fin), bg&&Math.abs(bg.fin))],
+  ];
+  const thetaRows=groupRows(c.th, b&&b.th, "deg");
+  const xRows=groupRows(c.x, b&&b.x, "cm");
+  const sect=label=>`<tr class="sect"><td colspan="4">${label}</td></tr>`;
+  const row=r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="${r[3].c}">${r[3].t}</span></td></tr>`;
+  // weighted-score rows (group subtotals + overall total), compared like any metric
+  const scoreRow=(label,cv,bv)=>{
+    const ch=chg(cv, b?bv:null);
+    return `<tr class="scorerow"><td>${label}</td><td>${f(cv,1)}</td><td>${b?f(bv,1):"—"}</td>`+
+           `<td><span class="${ch.c}">${ch.t}</span></td></tr>`;
+  };
+  let html='<tr><th>Metric</th><th>This run</th><th>Best run</th><th>vs best</th></tr>';
+  html+=sect("Pendulum angle θ");
+  for(const r of thetaRows) html+=row(r);
+  html+=scoreRow("Group score (θ)", c.thetaPart, b&&b.thetaPart);
+  html+=sect("Cart position x");
+  for(const r of xRows) html+=row(r);
+  html+=scoreRow("Group score (x)", c.xPart, b&&b.xPart);
+  // overall section: total tuning score + run outcome (upright vs tripped)
+  html+=sect("Overall");
+  html+=scoreRow("Total tuning score", c.score, b&&b.score);
+  let sc="chg-same", st="—";
+  if(b){ if(c.tripped===b.tripped) st="about the same";
+         else { st=c.tripped?"worse":"better"; sc=c.tripped?"chg-worse":"chg-better"; } }
+  html+=`<tr><td>Status</td><td>${c.tripped?"tripped":"upright"}</td>`+
+        `<td>${b?(b.tripped?"tripped":"upright"):"—"}</td><td><span class="${sc}">${st}</span></td></tr>`;
+  tbl.innerHTML=html;
+
+  // footnote: scoring rule + the gains that produced this test case's best
+  const bm=bestRuns[c.key];
+  const g=bm&&bm.gains;
+  const gainsTxt=g?` Best for this test case (score ${bm.score.toFixed(1)}) used Kp_θ=${g.Kp_theta}, Kd_θ=${g.Kd_theta}, Kp_x=${g.Kp_x}, Kd_x=${g.Kd_x}.`:"";
+  const nCases=Object.keys(bestRuns).length;
+  note.innerHTML="Lower is better for every row. Both groups are scored with the SAME formula — "+
+    "1·peak + 5·RMS + 0.5·settling + 0.5·reversals + 2·|final| — applied to θ (in deg) and to x (in cm), then summed (+100 if it fell). "+
+    `Best runs are saved per test case (starting angle θ₀), so runs are only compared against the same θ₀; ${nCases} test case${nCases===1?"":"s"} tracked. `+
+    "A run that beats its test case's best becomes that case's new benchmark."+gainsTxt;
+}
+
+function loop(now){
+  const dtReal=(now-last)/1000; last=now;
+  if(S.running && !S.blewUp){
+    acc += Math.min(dtReal,0.05)*speed;
+    let guard=0;
+    while(acc>=P.Ts && guard<10000){ if(!stepOnce())break; acc-=P.Ts; guard++; if(S.t>=P.Tstop){S.running=false;setRunBtn();break;} }
+  }
+  // Score the run once it has ended (reached the time window or diverged).
+  if(!S.running && !runFinalized && S.t>0 && (S.t>=P.Tstop || S.blewUp)) finalizeRun();
+  drawScene(); drawPlots(); refreshReadouts();
+  requestAnimationFrame(loop);
+}
+
+function wire(){
+  $("btnRun").onclick=()=>{ if(S.t>=P.Tstop||S.blewUp) initSim(); S.running=!S.running; last=performance.now(); setRunBtn(); };
+  $("btnReset").onclick=()=>{ initSim(); setRunBtn(); };
+  $("btnStep").onclick=()=>{ if(!S.running){ if(S.t>=P.Tstop||S.blewUp)initSim(); stepOnce(); } };
+  $("btnDisturb").onclick=()=>{ if(S){ S.thetadot += 1.6; } };  // angular-velocity kick (rad/s)
+  $("btnDefault").onclick=()=>{ resetToDefaults(); };
+  $("chkQuant").onchange=e=>{ quantOn=e.target.checked; };
+  $("speed").oninput=e=>{ speed=parseFloat(e.target.value); $("speedv").textContent=speed.toFixed(1)+"×"; };
+  $("btnDownload").onclick=downloadGraphs;
+  $("btnClearBest").onclick=clearBest;
+  $("tabSingle").onclick=()=>showView("single");
+  $("tabMulti").onclick=()=>showView("multi");
+  $("btnRunMulti").onclick=runMultiTest;
+  $("btnClearMultiBest").onclick=clearMultiBest;
+  window.addEventListener("resize", ()=>{
+    fitAll();
+    if($("viewMulti").style.display!=="none" && lastMulti) drawMultiPlots();
+  });
+  document.addEventListener("keydown", e=>{
+    if(e.target.tagName==="INPUT") return;
+    if($("viewMulti").style.display!=="none") return;   // shortcuts act on the single view only
+    if(e.code==="Space"){ e.preventDefault(); $("btnRun").click(); }
+    else if(e.key==="r"||e.key==="R"){ $("btnReset").click(); }
+    else if(e.key==="s"||e.key==="S"){ $("btnStep").click(); }
+    else if(e.key==="d"||e.key==="D"){ $("btnDisturb").click(); }
+  });
+}
+function flashPreset(msg){ $("presetNote").textContent=msg; }
+
+// Export the plots canvas to a PNG (composited onto a solid bg + a header with the gains/time).
+function downloadGraphs(){
+  if(!S) return;
+  const dpr=window.devicePixelRatio||1, headPx=38;
+  const out=document.createElement("canvas");
+  out.width=pcv.width; out.height=pcv.height+Math.round(headPx*dpr);
+  const c=out.getContext("2d");
+  c.fillStyle="#ffffff"; c.fillRect(0,0,out.width,out.height);
+  c.save(); c.scale(dpr,dpr);
+  c.fillStyle="#1f2733"; c.font="bold 13px Georgia, 'Times New Roman', serif";
+  c.fillText("Single Inverted Pendulum — angle / position / force vs time", 10, 16);
+  c.fillStyle="#67727f"; c.font="11px Segoe UI";
+  c.fillText(`Kp_θ=${P.Kp_theta} Kd_θ=${P.Kd_theta}  `+
+             `Kp_x=${P.Kp_x} Kd_x=${P.Kd_x}  t=${S.t.toFixed(2)}s`+
+             (S.tripped?"  (TRIPPED)":""), 10, 31);
+  c.restore();
+  c.drawImage(pcv, 0, Math.round(headPx*dpr));
+  const a=document.createElement("a");
+  a.download="inverted_pendulum_graphs.png";
+  a.href=out.toDataURL("image/png");
+  a.click();
+}
+
+/* =====================================================================
+   MODULE: MULTI-ANGLE VALIDATION — batch-test the current gains across many
+   starting angles, scoring BOTH θ and x per run. Separate from (and never
+   mixed with) the single-angle tuning tracker.
+   Per-run scores (lower = better):
+     θ score   = 1·extra-peak θ + 5·RMS + 0.5·settling + 0.5·reversals + 2·|final|
+     x score   = 1·extra-peak x + 5·RMS + 0.5·settling + 0.5·reversals + 2·|final|
+     run score = θ score + 0.5·x score + 100 if it fell   (fell counted ONCE)
+   Overall    = mean(run scores) + 0.5·max(run scores).
+   Both groups use the EXTRA peak beyond their starting value (θ beyond |θ₀|,
+   x beyond |x₀|) so runs aren't penalised for where they merely started; the
+   raw peaks are still shown in the table for information.
+   ===================================================================== */
+let lastMulti=null, bestMulti=null;
+const X_WEIGHT=0.5;            // x counts half of θ in the run score
+const WORST_WEIGHT=0.5;        // overall = mean + 0.5·worst
+const MULTI_COLORS=["#2f6fb3","#2e8b6f","#c77d11","#c0392b","#6a4fa3","#5a6bb0","#1f7a8c","#8a6d3b","#67727f","#9c4a78"];
+const mcv=$("multiPlots"), mctx=mcv.getContext("2d");
+
+// Run one head-to-tail simulation at the given starting angle (deg), using the
+// SAME engine (makeState/stepOnce) and the same gains/settings as the panel.
+function runMultiCase(theta0Deg){
+  const st=makeState(theta0Deg);
+  record(st);
+  const maxIter=Math.round(P.Tstop/P.Ts)+5;
+  for(let k=0;k<maxIter;k++){ if(!stepOnce(st) || st.blewUp) break; }
+  return st;
+}
+
+// Measure one finished case: both signal groups + the spec'd scores.
+// BOTH groups score the EXTRA peak beyond their starting value (θ beyond |θ₀|,
+// x beyond |x₀|); the raw peaks are shown in the table for information.
+function multiCaseMetrics(st, theta0Deg){
+  const d=st.data;
+  const xcm=d.x.map(v=>v*100);
+  const T=signalMetrics(d.th, d.t, SETTLE_BAND_DEG, OSC_HYST_DEG);   // θ group (raw peak in T.peak)
+  const X=signalMetrics(xcm,  d.t, SETTLE_BAND_CM,  OSC_HYST_CM);    // x group (raw peak in X.peak)
+  const fell=!!st.tripped || !!st.blewUp;
+  const extraPeakTheta=Math.max(0, T.peak-Math.abs(theta0Deg));      // overshoot beyond the start
+  const extraPeakX=Math.max(0, X.peak-Math.abs(xcm[0]));             // excursion beyond starting x
+  const thetaScore=W_PEAK*extraPeakTheta + W_RMS*T.rms + W_SETTLE*T.settle
+                 + W_OSC*T.osc + W_FINAL*Math.abs(T.fin);
+  const xScore=W_PEAK*extraPeakX + W_RMS*X.rms + W_SETTLE*X.settle
+             + W_OSC*X.osc + W_FINAL*Math.abs(X.fin);
+  let runScore=thetaScore + X_WEIGHT*xScore + (fell?TRIP_PENALTY:0); // fell added once
+  if(!isFinite(runScore)) runScore=1e6;
+  return {theta0:theta0Deg, th:T, x:X, extraPeakTheta, extraPeakX, thetaScore, xScore, runScore, fell,
+          data:{t:d.t, th:d.th, x:xcm}};
+}
+
+function runMultiTest(){
+  // parse the angle list
+  const angles=$("multiAngles").value.split(/[,;\s]+/).map(parseFloat)
+    .filter(v=>isFinite(v)).slice(0,10);
+  if(!angles.length){ $("multiStatus").textContent="Enter at least one starting angle in degrees, e.g. 2, 5, 10, 15."; return; }
+  readParams();
+  const gains={Kp_theta:P.Kp_theta, Ki_theta:P.Ki_theta, Kd_theta:P.Kd_theta,
+               Kp_x:P.Kp_x, Ki_x:P.Ki_x, Kd_x:P.Kd_x};
+
+  // one simulation per angle, identical gains/settings
+  const results=angles.map(a=>multiCaseMetrics(runMultiCase(a), a));
+
+  // summary statistics (items 13-15)
+  const avg=a=>a.reduce((s,v)=>s+v,0)/a.length;
+  const scores=results.map(r=>r.runScore), thS=results.map(r=>r.thetaScore), xS=results.map(r=>r.xScore);
+  const mean=avg(scores), worst=Math.max(...scores);
+  const overall=mean + WORST_WEIGHT*worst;
+  lastMulti={angles:[...angles], results, gains, tmax:P.Tstop,
+    mean, worst, overall,
+    meanTh:avg(thS), worstTh:Math.max(...thS),
+    meanX:avg(xS),  worstX:Math.max(...xS),
+    upright:results.filter(r=>!r.fell).length, total:results.length};
+
+  // best multi-angle tracker (separate from the single-angle bestRuns)
+  const prevOverall=bestMulti?bestMulti.overall:null;
+  const isNew=(!bestMulti || overall<bestMulti.overall);
+  if(isNew) bestMulti={overall, mean, worst, meanTh:lastMulti.meanTh, worstTh:lastMulti.worstTh,
+    meanX:lastMulti.meanX, worstX:lastMulti.worstX, upright:lastMulti.upright, total:lastMulti.total,
+    gains:{...gains}, angles:[...angles],
+    cases:results.map(r=>({theta0:r.theta0, thetaScore:r.thetaScore, xScore:r.xScore,
+                           runScore:r.runScore, fell:r.fell}))};
+  renderMulti(isNew, prevOverall);
+  $("multiStatus").textContent=`Ran ${results.length} simulation${results.length===1?"":"s"} with the current gains.`;
+}
+
+function renderMulti(isNew, prevOverall){
+  if(!lastMulti) return;
+  const L=lastMulti, f=(v,n)=>isFinite(v)?v.toFixed(n):"—";
+  for(const id of ["multiSummaryPanel","multiTablePanel","multiPlotsPanel","multiBestPanel"])
+    $(id).style.display="";
+
+  // ---- verdict (new best vs not) ----
+  const v=$("multiVerdict");
+  if(isNew && prevOverall==null){
+    v.className="verdict better";
+    v.textContent=`First multi-angle test — saved as the best (overall score ${f(L.overall,1)}).`;
+  } else if(isNew){
+    v.className="verdict better";
+    v.textContent=`New best multi-angle gain setting! Overall score ${f(L.overall,1)} vs previous best ${f(prevOverall,1)}.`;
+  } else {
+    v.className="verdict worse";
+    v.textContent=`Not a new best. Current overall score: ${f(L.overall,1)}. Best overall score: ${f(bestMulti.overall,1)}.`;
+  }
+
+  // ---- summary cards (item 15) ----
+  const card=(k,val)=>`<div class="ro"><div class="k">${k}</div><div class="v">${val}</div></div>`;
+  $("multiCards").innerHTML=
+    card("overall score", f(L.overall,1)) +
+    card("mean score", f(L.mean,1)) +
+    card("worst score", f(L.worst,1)) +
+    card("upright runs", `${L.upright} / ${L.total}`) +
+    card("mean θ score", f(L.meanTh,1)) +
+    card("worst θ score", f(L.worstTh,1)) +
+    card("mean x score", f(L.meanX,1)) +
+    card("worst x score", f(L.worstX,1));
+  const g=L.gains;
+  $("multiGainsNote").textContent=`Tested gains: Kp_θ=${g.Kp_theta}, Kd_θ=${g.Kd_theta}, `+
+    `Kp_x=${g.Kp_x}, Kd_x=${g.Kd_x} · fallen runs: ${L.total-L.upright}`;
+
+  // ---- per-angle results table (item 12) ----
+  const sgn=x=>(isFinite(x)&&x>=0?"+":"");
+  let h="<tr><th>θ₀ (deg)</th><th>raw peak θ</th><th>extra peak θ*</th><th>θ settle (s)</th>"+
+        "<th>θ RMS</th><th>θ rev</th><th>final θ</th>"+
+        "<th>raw peak x</th><th>extra peak x*</th><th>x settle (s)</th><th>x RMS</th><th>x rev</th><th>final x</th>"+
+        "<th>status</th><th>θ score</th><th>x score</th><th>total</th></tr>";
+  for(const r of L.results){
+    h+=`<tr><td>${f(r.theta0,1)}</td><td>${f(r.th.peak,1)}</td><td>${f(r.extraPeakTheta,1)}</td>`+
+       `<td>${f(r.th.settle,2)}</td><td>${f(r.th.rms,2)}</td><td>${f(r.th.osc,0)}</td>`+
+       `<td>${sgn(r.th.fin)}${f(r.th.fin,2)}</td>`+
+       `<td>${f(r.x.peak,1)}</td><td>${f(r.extraPeakX,1)}</td><td>${f(r.x.settle,2)}</td><td>${f(r.x.rms,2)}</td>`+
+       `<td>${f(r.x.osc,0)}</td><td>${sgn(r.x.fin)}${f(r.x.fin,2)}</td>`+
+       `<td><span class="${r.fell?'chg-worse':'chg-better'}">${r.fell?"fell":"upright"}</span></td>`+
+       `<td>${f(r.thetaScore,1)}</td><td>${f(r.xScore,1)}</td><td><b>${f(r.runScore,1)}</b></td></tr>`;
+  }
+  $("multiTable").innerHTML=h;
+
+  // ---- best section (items 16/18 tail) ----
+  renderMultiBest();
+  drawMultiPlots();
+}
+
+function renderMultiBest(){
+  const f=(v,n)=>isFinite(v)?v.toFixed(n):"—";
+  if(!bestMulti){
+    $("multiBestInfo").textContent="No best multi-angle result saved yet — run a test.";
+    $("multiBestTable").innerHTML=""; return;
+  }
+  const B=bestMulti, g=B.gains;
+  $("multiBestInfo").innerHTML=
+    `Best overall score <b>${f(B.overall,1)}</b> (mean ${f(B.mean,1)}, worst ${f(B.worst,1)}; `+
+    `θ mean/worst ${f(B.meanTh,1)}/${f(B.worstTh,1)}, x mean/worst ${f(B.meanX,1)}/${f(B.worstX,1)}; `+
+    `upright ${B.upright}/${B.total}).<br>`+
+    `Gains: Kp_θ=${g.Kp_theta}, Kd_θ=${g.Kd_theta}, Kp_x=${g.Kp_x}, Kd_x=${g.Kd_x} · `+
+    `Angles tested: ${B.angles.join(", ")}°`;
+  let h="<tr><th>θ₀ (deg)</th><th>θ score</th><th>x score</th><th>total</th><th>status</th></tr>";
+  for(const c of B.cases){
+    h+=`<tr><td>${f(c.theta0,1)}</td><td>${f(c.thetaScore,1)}</td><td>${f(c.xScore,1)}</td>`+
+       `<td><b>${f(c.runScore,1)}</b></td>`+
+       `<td><span class="${c.fell?'chg-worse':'chg-better'}">${c.fell?"fell":"upright"}</span></td></tr>`;
+  }
+  $("multiBestTable").innerHTML=h;
+}
+
+function clearMultiBest(){ bestMulti=null; renderMultiBest(); }
+
+// ---- overlaid response plots: θ(t) and x(t), one curve per starting angle ----
+function drawMultiPlots(){
+  if(!lastMulti) return;
+  const [W,H]=fitCanvas(mcv,mctx);
+  mctx.clearRect(0,0,W,H);
+  mctx.fillStyle="#ffffff"; mctx.fillRect(0,0,W,H);
+  const L=lastMulti, gap=12, ph=(H-gap)/2;
+  multiSubplot(0, 0,      W, ph, "Pendulum angle θ (deg)", L, r=>r.data.th,
+               [P.max_theta_deg,-P.max_theta_deg]);
+  multiSubplot(0, ph+gap, W, ph, "Cart position x (cm)",   L, r=>r.data.x,
+               [P.max_x*100,-P.max_x*100]);
+}
+function multiSubplot(x0,y0,w,h, title, L, pick, limits){
+  const ctx=mctx;
+  ctx.fillStyle="#fafbfc"; rr(ctx,x0,y0,w,h,6); ctx.fill();
+  ctx.strokeStyle="#e3e8ee"; ctx.lineWidth=1; ctx.stroke();
+  // y-range over all curves + limit lines
+  let ymin=Infinity,ymax=-Infinity;
+  for(const r of L.results) for(const v of pick(r)){ if(isFinite(v)){ if(v<ymin)ymin=v; if(v>ymax)ymax=v; } }
+  for(const v of limits){ if(v<ymin)ymin=v; if(v>ymax)ymax=v; }
+  if(!isFinite(ymin)){ymin=-1;ymax=1;}
+  if(ymax-ymin<1e-9){ymin-=1;ymax+=1;}
+  const pad=(ymax-ymin)*0.12; ymin-=pad; ymax+=pad;
+  const tmax=Math.max(L.tmax,1e-6);
+  const PX=t=>x0+46+(t/tmax)*(w-58), PY=v=>y0+8+(1-(v-ymin)/(ymax-ymin))*(h-26);
+  // grid + labels
+  ctx.font="10px Segoe UI"; ctx.textAlign="right"; ctx.fillStyle="#67727f";
+  for(let i=0;i<=2;i++){ const v=ymin+(ymax-ymin)*i/2, yy=PY(v);
+    ctx.strokeStyle="#eaedf2"; ctx.beginPath(); ctx.moveTo(x0+46,yy); ctx.lineTo(x0+w-12,yy); ctx.stroke();
+    ctx.fillText(v.toFixed(Math.abs(ymax)<2?2:1), x0+42, yy+3); }
+  ctx.textAlign="center";
+  for(let i=0;i<=4;i++){ const t=tmax*i/4; ctx.fillText(t.toFixed(tmax<2?2:1), PX(t), y0+h-3); }
+  // limit lines
+  ctx.setLineDash([5,4]); ctx.strokeStyle="#d0584a"; ctx.lineWidth=1;
+  for(const v of limits){ const yy=PY(v); ctx.beginPath(); ctx.moveTo(x0+46,yy); ctx.lineTo(x0+w-12,yy); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // curves
+  L.results.forEach((r,i)=>{
+    const arr=pick(r), t=r.data.t, col=MULTI_COLORS[i%MULTI_COLORS.length];
+    ctx.strokeStyle=col; ctx.lineWidth=1.7; ctx.beginPath();
+    for(let k=0;k<arr.length;k++){ const px=PX(t[k]), py=PY(arr[k]); if(k===0)ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+    ctx.stroke();
+  });
+  // title + legend (one label per starting angle, in its curve colour).
+  // The title width is measured in the TITLE font (measuring after switching to
+  // the legend font under-reports it and the legend overlaps the title), and
+  // legend items wrap onto extra rows instead of running off the right edge.
+  ctx.textAlign="left"; ctx.fillStyle="#1f2733"; ctx.font="bold 13px Georgia, 'Times New Roman', serif";
+  ctx.fillText(title, x0+50, y0+16);
+  const titleW=ctx.measureText(title).width;
+  ctx.font="11px Segoe UI";
+  let lx=x0+50+titleW+22, ly=y0+16;
+  const lxStart=x0+50, lxMax=x0+w-14;
+  L.results.forEach((r,i)=>{
+    const col=MULTI_COLORS[i%MULTI_COLORS.length], lab=`θ₀=${r.theta0}°`;
+    const itemW=18+ctx.measureText(lab).width+14;
+    if(lx+itemW>lxMax){ lx=lxStart; ly+=15; }          // wrap to the next legend row
+    ctx.strokeStyle=col; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(lx,ly-4); ctx.lineTo(lx+14,ly-4); ctx.stroke();
+    ctx.fillStyle=col; ctx.fillText(lab, lx+18, ly);
+    lx+=itemW;
+  });
+}
+
+// ---- tab switching ----
+function showView(which){
+  const single=(which==="single");
+  $("viewSingle").style.display=single?"":"none";
+  $("viewMulti").style.display=single?"none":"";
+  $("tabSingle").classList.toggle("active",single);
+  $("tabMulti").classList.toggle("active",!single);
+  if(single){ fitAll(); drawStatic(); drawPlots(); }
+  else if(lastMulti){ drawMultiPlots(); }
+}
+
+function init(){
+  buildPanel(); wire();
+  $("assump").innerHTML =
+    "Notes: m₁ is the end bob, m₂ the rod (matches your B,C formulas). "+
+    "Encoder resolution uses 360/2<sup>bits</sup> (your 360/(2·bits) gives 15° — likely a typo for 2<sup>bits</sup>). "+
+    "The binding actuator limit in the dynamics is the cart force from motor torque / pulley radius. "+
+    "Change the gains, θ₀ or Ts, then press Reset to apply.";
+  updateDerived();
+  quantOn=$("chkQuant").checked;
+  initSim(); fitAll();
+  renderMetrics();          // show the tuning-tracker placeholder
+  flashPreset("Tip: the default gains (Kp_θ=1) won't balance — try Kp_θ≈24, Kd_θ≈2.6, Kp_x≈3, Kd_x≈4, then Reset and Start.");
+  setRunBtn();
+  requestAnimationFrame(loop);
+}
+window.addEventListener("load", init);
+</script>
+</body>
+</html>
