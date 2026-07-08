@@ -3583,7 +3583,7 @@
 				)
 			)
 		)
-		(property "Value" "100 ohm"
+		(property "Value" "220 ohm"
 			(at 85.09 91.44 90)
 			(show_name no)
 			(do_not_autoplace no)
