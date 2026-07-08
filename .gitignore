@@ -1,0 +1,14 @@
+# KiCad generated files
+IP_Circuit_Schematics/.history/
+IP_Circuit_Schematics/*.kicad_pcb
+IP_Circuit_Schematics/*.kicad_prl
+IP_Circuit_Schematics/*.kicad_pro
+
+# Python files
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# VS Code
+.vscode/
